@@ -1,0 +1,34 @@
+# AI Mock Interview — Python Dependencies
+# Install with: pip install -r requirements.txt
+#
+# Note: sentence-transformers pulls in torch (~2GB). This is unavoidable —
+# it's needed for the all-MiniLM-L6-v2 embedding model used in Phase 4 (RAG).
+# First install will be slow. Subsequent runs use the cached model.
+
+# --- Web framework ---
+fastapi==0.135.2
+uvicorn==0.42.0
+python-multipart==0.0.22      # required for file upload (resume PDF)
+starlette==1.0.0
+
+# --- LLM providers (all installed; active one set via LLM_PROVIDER in .env) ---
+anthropic==0.88.0             # Claude (active default)
+google-genai==1.70.0          # Gemini (alternative)
+openai==2.30.0                # OpenAI (commented out, needs credits)
+
+# --- Voice ---
+elevenlabs==2.40.0            # Text-to-speech for interviewer voice
+
+# --- Database ---
+supabase==2.28.3              # Supabase client (Postgres + pgvector + REST)
+psycopg2-binary==2.9.11       # Direct Postgres driver (used by supabase client)
+httpx==0.28.1                 # HTTP client used internally by supabase
+
+# --- Embeddings / RAG ---
+sentence-transformers==5.3.0  # all-MiniLM-L6-v2 for Phase 4 vector search
+numpy==2.4.4
+
+# --- Config / validation ---
+pydantic==2.12.5
+pydantic-settings==2.13.1
+python-dotenv==1.2.2

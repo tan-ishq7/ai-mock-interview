@@ -1,0 +1,164 @@
+============================================================
+  AI MOCK INTERVIEW AGENT — How to Run
+============================================================
+
+PREREQUISITES
+-------------
+- Python 3.12+
+- Node.js 18+
+- A .env file in the project root (already created)
+
+============================================================
+STEP 1: Start the Backend (FastAPI)
+============================================================
+
+Open a terminal, cd to the project folder:
+
+  cd C:\Users\lenovo\Desktop\Darling_April_think_I_am_in_love_with_you\April_I_love_you_2
+
+Activate the virtual environment:
+
+  .\venv\Scripts\activate
+
+Start the backend server:
+
+  python -m uvicorn backend.main:app --port 8000 --reload --reload-dir backend
+
+You should see:
+  INFO:     Uvicorn running on http://127.0.0.1:8000
+
+Verify it works:
+  Open http://127.0.0.1:8000/api/health in your browser
+  You should see: {"status":"ok","service":"AI Mock Interview Agent"}
+
+API docs available at: http://127.0.0.1:8000/docs
+
+============================================================
+STEP 2: Start the Frontend (React + Vite)
+============================================================
+
+Open a SECOND terminal, cd to the frontend folder:
+
+  cd C:\Users\lenovo\Desktop\Darling_April_think_I_am_in_love_with_you\April_I_love_you_2\frontend
+
+Start the dev server:
+
+  npx vite --port 5173
+
+You should see:
+  VITE ready in Xms
+  Local: http://localhost:5173/
+
+============================================================
+STEP 3: Use the App
+============================================================
+
+Open http://localhost:5173 in your browser.
+
+1. Upload a PDF resume
+2. Click "Start Interview"
+3. Chat through all 5 phases
+4. View the final report
+
+============================================================
+STEP 4: Seed ML Questions (one-time setup)
+============================================================
+
+In a terminal with the venv activated:
+
+  python -m backend.knowledge.question_indexer
+
+This parses ml_questions.md, generates embeddings, and
+stores them in Supabase for Phase 4 factual questions.
+
+NOTE: This loads the sentence-transformers model (~500MB)
+so it may take a minute the first time.
+
+============================================================
+HOW TO STOP THE APP
+============================================================
+
+Option A: Press Ctrl+C in each terminal window.
+
+Option B: Kill all processes at once (PowerShell):
+
+  taskkill /F /IM python.exe
+  taskkill /F /IM node.exe
+
+Option C: Kill by port (if processes are stuck):
+
+  netstat -ano | findstr :8000
+  taskkill /F /PID <PID_NUMBER>
+
+  netstat -ano | findstr :5173
+  taskkill /F /PID <PID_NUMBER>
+
+============================================================
+SWITCHING LLM PROVIDERS
+============================================================
+
+Edit the .env file and change LLM_PROVIDER:
+
+  LLM_PROVIDER=claude    (active — Claude Sonnet 4, most reliable)
+  LLM_PROVIDER=gemini    (Gemini 2.5/2.0 Flash, free tier)
+  LLM_PROVIDER=openai    (GPT-5.4, needs OpenAI credits)
+
+Then restart the backend (Ctrl+C and re-run Step 1).
+
+============================================================
+TROUBLESHOOTING
+============================================================
+
+"Port already in use":
+  Run: netstat -ano | findstr :8000
+  Kill the PID: taskkill /F /PID <number>
+
+"Module not found":
+  Make sure venv is activated: .\venv\Scripts\activate
+  Re-install deps: pip install -r backend/requirements.txt
+
+"Internal Server Error on upload":
+  Check the terminal running the backend for the traceback.
+  Most common cause: LLM API key is invalid or has no credits.
+
+"Frontend shows blank page":
+  Check the browser console (F12) for errors.
+  Make sure backend is running on port 8000.
+
+============================================================
+PROJECT STRUCTURE
+============================================================
+
+backend/
+  main.py              — FastAPI app entry point
+  config.py            — Settings loaded from .env
+  resume/
+    parser.py          — PDF parsing via LLM (Claude/Gemini/OpenAI)
+    router.py          — /api/resume/upload endpoint
+  interview/
+    engine.py          — 5-phase interview orchestrator
+    prompt_templates.py — All LLM prompts
+    router.py          — /api/interview/* endpoints
+  evaluation/
+    socratic_metric.py — Russian doll depth scoring
+    factual_scorer.py  — Phase 4 correct/incorrect scoring
+    behavioral_scorer.py — Phase 5 visionary/grounded/teamplayer
+    report_generator.py — Final report compilation
+    router.py          — /api/evaluation/* endpoints
+  knowledge/
+    ml_questions.md    — 50+ ML questions from GitHub
+    question_indexer.py — Embed and store in Supabase
+    question_retriever.py — Similarity search for Phase 4
+  voice/
+    stt.py             — Speech-to-text (Whisper)
+    tts.py             — Text-to-speech (ElevenLabs)
+    router.py          — /api/voice/* endpoints
+  database/
+    supabase_client.py — Supabase connection
+    schema.sql         — Database table definitions
+
+frontend/
+  src/
+    pages/             — Upload, Interview, Report pages
+    components/        — UI components
+    services/          — API client functions

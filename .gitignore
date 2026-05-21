@@ -1,0 +1,38 @@
+# Environment variables - NEVER commit
+.env
+.env.local
+.env.production
+
+# Python
+Jonathon/
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/build/
+.next/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+secrets.md
+*.pem
+*.key
