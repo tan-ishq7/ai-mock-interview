@@ -180,7 +180,7 @@ def _parse_with_claude(file_bytes: bytes) -> str:
     pdf_b64 = base64.standard_b64encode(file_bytes).decode("utf-8")
 
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-3-5-sonnet-20240620",
         max_tokens=4096,
         messages=[
             {
