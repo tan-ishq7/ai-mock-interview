@@ -111,7 +111,7 @@ def _parse_with_gemini(file_bytes: bytes) -> str:
     ]
 
     # Try models in order: 2.5-flash (best) -> 2.0-flash (fallback)
-    models = ["gemini-2.5-flash", "gemini-2.0-flash"]
+    models = ["gemini-3.6-flash", "gemini-3.5-flash"]
     last_error = None
 
     for model_name in models:
@@ -178,9 +178,10 @@ def _parse_with_claude(file_bytes: bytes) -> str:
 
     client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     pdf_b64 = base64.standard_b64encode(file_bytes).decode("utf-8")
-
+    print(f"DEBUG: Using Anthropic Key: '{settings.ANTHROPIC_API_KEY}'")
     message = client.messages.create(
-        model="claude-3-5-sonnet-20240620",
+        
+        model="claude-sonnet-5",
         max_tokens=4096,
         messages=[
             {

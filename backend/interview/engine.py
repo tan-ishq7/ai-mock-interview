@@ -15,6 +15,7 @@ import json
 import logging
 from typing import Any
 from uuid import uuid4
+import anthropic
 
 from backend.config import settings
 from backend.interview.prompt_templates import (
@@ -75,27 +76,28 @@ def _call_llm(
 # =========================================================================
 # CLAUDE / ANTHROPIC PROVIDER (active)
 # =========================================================================
-def _call_claude(
-    system_prompt: str,
-    conversation: list[dict[str, str]],
-) -> str:
-    """Call Claude Sonnet 4 with the given system prompt and conversation."""
-    import anthropic
-
+def _call_claude(system_prompt, conversation):
+    # Re-add the client definition!
     client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
-    messages = []
-    for msg in conversation:
-        messages.append({"role": msg["role"], "content": msg["content"]})
+    # Anthropic requires at least one message. 
+    # If history is empty (e.g., start of a new phase), inject a trigger message.
+    if not conversation or len(conversation) == 0:
+        conversation = [{"role": "user", "content": "Please proceed to the next phase and ask your first question."}]
 
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4096,
+        model="claude-sonnet-5",
+        max_tokens=1024,
         system=system_prompt,
-        messages=messages,
+        messages=conversation
     )
-
-    return response.content[0].text.strip()
+    
+    # Search through the response blocks to find the actual text response
+    for block in response.content:
+        if block.type == "text":
+            return block.text.strip()
+            
+    return "Sorry, I couldn't generate a text response."
 
 
 # =========================================================================

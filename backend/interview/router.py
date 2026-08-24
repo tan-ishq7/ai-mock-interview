@@ -28,19 +28,21 @@ async def start_interview(body: StartRequest):
     """Create a new interview session for an existing candidate."""
     supabase = get_supabase()
 
-    # Fetch candidate from DB
+# Fetch candidate from DB safely without crashing on 0 rows
     result = (
         supabase.table("candidates")
         .select("*")
         .eq("id", body.candidate_id)
-        .single()
         .execute()
     )
 
     if not result.data:
-        raise HTTPException(status_code=404, detail="Candidate not found.")
+        raise HTTPException(
+            status_code=404, 
+            detail="Candidate not found. Your email may already exist in the database. Please clear the database row and re-upload."
+        )
 
-    candidate_data = result.data
+    candidate_data = result.data[0]
 
     # Create in-memory session
     state = create_session(candidate_data)
