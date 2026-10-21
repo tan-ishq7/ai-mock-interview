@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # --- Gemini ------------------------------------------------------------
     GEMINI_API_KEY: str = ""
 
+    # --- Groq (Free fast Whisper STT) --------------------------------------
+    GROQ_API_KEY: str = ""
+
     # --- Claude / Anthropic (active provider) ------------------------------
     ANTHROPIC_API_KEY: str = ""
     LLM_PROVIDER: str = "claude"  # "claude", "gemini", or "openai"

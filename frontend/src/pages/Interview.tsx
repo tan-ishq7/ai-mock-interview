@@ -125,10 +125,11 @@ export default function Interview() {
           const audioUrl = URL.createObjectURL(audioBlob);
           new Audio(audioUrl).play().catch(() => {});
         } catch {}
-      } catch {
+      } catch (err: any) {
+        const msg = err?.message || 'Sorry, I could not process your audio.';
         setMessages((prev) => [
           ...prev,
-          { role: 'interviewer', content: 'Sorry, I could not process your audio. Please try typing instead.' },
+          { role: 'interviewer', content: `${msg} Please try typing instead.` },
         ]);
       } finally {
         setIsLoading(false);

@@ -24,16 +24,46 @@ class TranscriptionResult:
     words_per_minute: float
 
 
-def _get_client() -> OpenAI:
-    if not settings.OPENAI_API_KEY:
-        raise ValueError(
-            "OPENAI_API_KEY is not configured in .env. Please set OPENAI_API_KEY to enable voice transcription, or type your answers in the interview chat."
-        )
-    return OpenAI(api_key=settings.OPENAI_API_KEY)
+def _get_openai_client():
+    if settings.GROQ_API_KEY:
+        return OpenAI(
+            api_key=settings.GROQ_API_KEY,
+            base_url="https://api.groq.com/openai/v1",
+        ), "whisper-large-v3-turbo"
+    if settings.OPENAI_API_KEY:
+        return OpenAI(api_key=settings.OPENAI_API_KEY), "whisper-1"
+    return None, None
+
+
+async def _transcribe_with_gemini(audio_bytes: bytes, filename: str) -> str:
+    """Fallback transcription using Google Gemini 2.0 Flash."""
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    mime = "audio/webm"
+    if filename.endswith(".mp3"):
+        mime = "audio/mp3"
+    elif filename.endswith(".wav"):
+        mime = "audio/wav"
+    elif filename.endswith(".m4a") or filename.endswith(".mp4"):
+        mime = "audio/mp4"
+
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=[
+            types.Part.from_bytes(data=audio_bytes, mime_type=mime),
+            (
+                "You are a speech-to-text transcriber. Transcribe the audio verbatim. "
+                "Output ONLY the transcribed spoken text. Do not add explanations, conversational remarks, or markdown."
+            ),
+        ],
+    )
+    return (response.text or "").strip()
 
 
 async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.webm") -> TranscriptionResult:
-    """Transcribe audio using Whisper and compute speech metrics.
+    """Transcribe audio using Groq, OpenAI Whisper, or Gemini.
 
     Parameters
     ----------
@@ -46,32 +76,38 @@ async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.webm") -> 
     -------
     TranscriptionResult with text and speech rate metrics.
     """
-    client = _get_client()
+    client, model_name = _get_openai_client()
 
-    audio_file = io.BytesIO(audio_bytes)
-    audio_file.name = filename
+    if client and model_name:
+        audio_file = io.BytesIO(audio_bytes)
+        audio_file.name = filename
 
-    # Use verbose_json to get timing information
-    response = client.audio.transcriptions.create(
-        model="whisper-1",
-        file=audio_file,
-        response_format="verbose_json",
-        timestamp_granularities=["word"],
-    )
+        try:
+            response = client.audio.transcriptions.create(
+                model=model_name,
+                file=audio_file,
+                response_format="verbose_json",
+            )
+            text = response.text.strip()
+            duration = float(getattr(response, "duration", 0.0) or 5.0)
+        except Exception as exc:
+            logger.warning("Whisper transcription failed (%s), attempting Gemini...", exc)
+            if settings.GEMINI_API_KEY:
+                text = await _transcribe_with_gemini(audio_bytes, filename)
+                duration = 5.0
+            else:
+                raise exc
+    elif settings.GEMINI_API_KEY:
+        text = await _transcribe_with_gemini(audio_bytes, filename)
+        duration = 5.0
+    else:
+        raise ValueError(
+            "No voice transcription API key found. Please add GEMINI_API_KEY (free), "
+            "GROQ_API_KEY (free), or OPENAI_API_KEY to your Render Environment Variables."
+        )
 
-    text = response.text.strip()
     words = text.split()
     word_count = len(words)
-
-    # Calculate duration from word timestamps
-    duration = 0.0
-    if hasattr(response, "duration") and response.duration:
-        duration = float(response.duration)
-    elif hasattr(response, "words") and response.words:
-        last_word = response.words[-1]
-        duration = float(last_word.get("end", 0))
-
-    # Words per minute
     wpm = (word_count / duration * 60) if duration > 0 else 0.0
 
     return TranscriptionResult(
