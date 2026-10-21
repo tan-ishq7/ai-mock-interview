@@ -25,7 +25,9 @@ psycopg2-binary==2.9.11       # Direct Postgres driver (used by supabase client)
 httpx==0.28.1                 # HTTP client used internally by supabase
 
 # --- Embeddings / RAG ---
-sentence-transformers==5.3.0  # all-MiniLM-L6-v2 for Phase 4 vector search
+# Note: sentence-transformers is excluded in cloud deployment to keep RAM < 50MB (Render free tier limit is 512MB).
+# Vector retrieval uses smart category matching & Supabase pgvector fallback.
+# sentence-transformers==5.3.0
 numpy==2.4.4
 
 # --- Config / validation ---

@@ -11,8 +11,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-from sentence_transformers import SentenceTransformer
-
 from backend.database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
@@ -68,6 +66,11 @@ def _generate_embeddings(
     questions: list[dict[str, str]],
 ) -> list[dict[str, Any]]:
     """Add 384-dim embeddings to each question dict."""
+    try:
+        from sentence_transformers import SentenceTransformer
+    except ImportError as e:
+        raise RuntimeError("sentence-transformers is required to generate embeddings offline.") from e
+
     model = SentenceTransformer(EMBEDDING_MODEL_NAME)
     texts = [q["question"] for q in questions]
     embeddings = model.encode(texts, show_progress_bar=True, normalize_embeddings=True)
