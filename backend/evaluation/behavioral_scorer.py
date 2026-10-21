@@ -73,12 +73,16 @@ def compute_behavioral_score(
         import anthropic
         client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-5",
             max_tokens=4096,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = response.content[0].text.strip()
+        raw = ""
+        for block in response.content:
+            if getattr(block, "type", None) == "text":
+                raw = block.text.strip()
+                break
 
     # ── GEMINI ──
     elif provider == "gemini":

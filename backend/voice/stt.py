@@ -25,6 +25,10 @@ class TranscriptionResult:
 
 
 def _get_client() -> OpenAI:
+    if not settings.OPENAI_API_KEY:
+        raise ValueError(
+            "OPENAI_API_KEY is not configured in .env. Please set OPENAI_API_KEY to enable voice transcription, or type your answers in the interview chat."
+        )
     return OpenAI(api_key=settings.OPENAI_API_KEY)
 
 

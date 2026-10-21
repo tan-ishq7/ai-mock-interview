@@ -60,12 +60,10 @@ CREATE INDEX IF NOT EXISTS idx_sessions_candidate
 
 
 -- ============================================================
--- STEP 4: conversation_messages
+-- STEP 4: conversation_history
 -- Full transcript of every message (interviewer + candidate) per session.
--- NOTE: The current code does NOT write here yet — this is the correct
---       schema for when that feature is added.
 -- ============================================================
-CREATE TABLE IF NOT EXISTS conversation_messages (
+CREATE TABLE IF NOT EXISTS conversation_history (
     id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id      UUID        NOT NULL REFERENCES interview_sessions(id) ON DELETE CASCADE,
     phase           INT         NOT NULL CHECK (phase BETWEEN 1 AND 5),
@@ -79,7 +77,10 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_session
-    ON conversation_messages(session_id, phase);
+    ON conversation_history(session_id, phase);
+
+-- View for backwards compatibility
+CREATE OR REPLACE VIEW conversation_messages AS SELECT * FROM conversation_history;
 
 
 -- ============================================================

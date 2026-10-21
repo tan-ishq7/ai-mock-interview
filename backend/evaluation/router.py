@@ -8,6 +8,9 @@ from backend.evaluation.report_generator import generate_report
 router = APIRouter()
 
 
+from backend.database.local_store import get_report as get_cached_report
+
+
 @router.post("/{session_id}/evaluate")
 async def evaluate_session(session_id: str):
     """Trigger evaluation and report generation for a completed interview."""
@@ -24,22 +27,28 @@ async def evaluate_session(session_id: str):
 
 
 @router.get("/{session_id}/report")
+@router.get("/report/{session_id}")
 async def get_report(session_id: str):
-    """Retrieve a previously generated report from Supabase."""
-    supabase = get_supabase()
+    """Retrieve a previously generated report."""
+    cached = get_cached_report(session_id)
+    if cached:
+        return {"status": "ok", "report": cached}
 
-    result = (
-        supabase.table("reports")
-        .select("*")
-        .eq("session_id", session_id)
-        .limit(1)
-        .execute()
-    )
-
-    if not result.data:
-        raise HTTPException(
-            status_code=404,
-            detail="Report not found. Run POST /evaluate first.",
+    try:
+        supabase = get_supabase()
+        result = (
+            supabase.table("reports")
+            .select("*")
+            .eq("session_id", session_id)
+            .limit(1)
+            .execute()
         )
+        if result.data:
+            return {"status": "ok", "report": result.data[0]}
+    except Exception:
+        pass
 
-    return {"status": "ok", "report": result.data[0]}
+    raise HTTPException(
+        status_code=404,
+        detail="Report not found. Run POST /evaluate first.",
+    )

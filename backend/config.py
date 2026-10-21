@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # --- ElevenLabs -----------------------------------------------------
     ELEVENLABS_API_KEY: str = ""
-    ELEVENLABS_VOICE_ID: str = "lZORFNDokoBmfd0S06vf"
+    ELEVENLABS_VOICE_ID: str = "EXAVITQu4vr4xnSDxMaL"
 
     # --- Supabase -------------------------------------------------------
     SUPABASE_URL: str = ""

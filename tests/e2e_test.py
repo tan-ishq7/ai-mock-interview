@@ -59,7 +59,7 @@ async def test_resume_upload(pdf_path: str = None):
         assert data["status"] == "ok"
         assert "data" in data
         print(f"  PASS - Parsed {len(data['data'])} sections")
-        return data["data"]
+        return data
 
 
 async def test_interview_flow(candidate_id: str = None):
@@ -71,9 +71,9 @@ async def test_interview_flow(candidate_id: str = None):
             f"{BACKEND_URL}/api/interview/start",
             json={"candidate_id": candidate_id or "test"},
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 200, f"Start failed: {resp.text}"
         data = resp.json()
-        print(f"  Start: {data}")
+        print(f"  Start: {data.get('message', '')[:100]}...")
 
         session_id = data.get("session_id", "test")
 
@@ -84,16 +84,16 @@ async def test_interview_flow(candidate_id: str = None):
                 "message": "I am a machine learning scientist with 5 years of experience at Amazon Alexa, working on NLP and TTS systems."
             },
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 200, f"Respond failed: {resp.text}"
         data = resp.json()
-        print(f"  Respond: {data}")
+        print(f"  Respond: {data.get('message', '')[:100]}...")
 
         # Check session status
         resp = await client.get(f"{BACKEND_URL}/api/interview/{session_id}/status")
         assert resp.status_code == 200
         print(f"  Status: {resp.json()}")
 
-    return True
+    return session_id
 
 
 async def test_voice_endpoints():
@@ -106,16 +106,22 @@ async def test_voice_endpoints():
             json={"text": "Could you please tell me about yourself?"},
         )
         print(f"  TTS status: {resp.status_code}")
+        assert resp.status_code == 200, f"TTS failed: {resp.text}"
 
     return True
 
 
-async def test_evaluation_endpoint():
+async def test_evaluation_endpoint(session_id: str = None):
     """Test 5: Evaluation and report."""
     print("\n[Test 5] Evaluation endpoint...")
+    sid = session_id or "test-session"
     async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.get(f"{BACKEND_URL}/api/evaluation/report/test-session")
+        eval_resp = await client.post(f"{BACKEND_URL}/api/evaluation/{sid}/evaluate")
+        print(f"  Evaluate status: {eval_resp.status_code}")
+
+        resp = await client.get(f"{BACKEND_URL}/api/evaluation/report/{sid}")
         print(f"  Report status: {resp.status_code}")
+        assert resp.status_code == 200, f"Report failed: {resp.text}"
 
     return True
 
@@ -192,14 +198,23 @@ async def run_all_tests(pdf_path: str = None):
         print(f"  FAIL - {e}")
         results["health"] = False
 
+    cand_id = None
+    sess_id = None
+
     try:
-        results["resume_upload"] = await test_resume_upload(pdf_path)
+        upload_res = await test_resume_upload(pdf_path)
+        if isinstance(upload_res, dict) and "candidate_id" in upload_res:
+            cand_id = upload_res["candidate_id"]
+            results["resume_upload"] = True
+        else:
+            results["resume_upload"] = bool(upload_res)
     except Exception as e:
         print(f"  FAIL - {e}")
         results["resume_upload"] = False
 
     try:
-        results["interview_flow"] = await test_interview_flow()
+        sess_id = await test_interview_flow(cand_id)
+        results["interview_flow"] = bool(sess_id)
     except Exception as e:
         print(f"  FAIL - {e}")
         results["interview_flow"] = False
@@ -211,7 +226,7 @@ async def run_all_tests(pdf_path: str = None):
         results["voice"] = False
 
     try:
-        results["evaluation"] = await test_evaluation_endpoint()
+        results["evaluation"] = await test_evaluation_endpoint(sess_id)
     except Exception as e:
         print(f"  FAIL - {e}")
         results["evaluation"] = False

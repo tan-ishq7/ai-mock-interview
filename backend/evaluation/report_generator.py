@@ -140,11 +140,15 @@ def generate_report(session_id: str) -> dict[str, Any]:
         import anthropic
         client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-5",
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        report_text = response.content[0].text.strip()
+        report_text = ""
+        for block in response.content:
+            if getattr(block, "type", None) == "text":
+                report_text = block.text.strip()
+                break
 
     # ── GEMINI ──
     elif provider == "gemini":
@@ -225,6 +229,10 @@ def generate_report(session_id: str) -> dict[str, Any]:
         "report_text": report_text,
     }
 
+    # ── Always cache locally ──
+    from backend.database.local_store import save_report
+    save_report(session_id, report_data)
+
     # ── Store in Supabase ──
     try:
         supabase = get_supabase()
@@ -264,8 +272,8 @@ def generate_report(session_id: str) -> dict[str, Any]:
 
         supabase.table("reports").insert(report_data).execute()
 
-    except Exception:
-        logger.exception("Failed to store report in Supabase")
+    except Exception as exc:
+        logger.warning("Supabase report storage skipped (%s)", exc)
 
     return report_data
 

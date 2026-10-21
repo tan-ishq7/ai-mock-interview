@@ -14,14 +14,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _store_candidate(parsed: dict[str, Any]) -> str:
-    """Insert the parsed resume into the Supabase candidates table.
+from backend.database.local_store import save_candidate
 
-    Returns the candidate id (UUID string) assigned by Supabase.
-    """
+
+def _store_candidate(parsed: dict[str, Any], candidate_id: str) -> str:
+    """Insert the parsed resume into the Supabase candidates table."""
     supabase = get_supabase()
 
-    # Build resume_sections JSONB from all parsed fields
     resume_sections = {
         "about_me": parsed.get("about_me"),
         "education": parsed.get("education"),
@@ -32,6 +31,7 @@ def _store_candidate(parsed: dict[str, Any]) -> str:
     }
 
     row = {
+        "id": candidate_id,
         "name": parsed.get("name") or "Unknown",
         "email": parsed.get("email") or "unknown@example.com",
         "resume_raw_text": parsed.get("raw_text", ""),
@@ -47,13 +47,12 @@ def _store_candidate(parsed: dict[str, Any]) -> str:
         .execute()
     )
 
-    candidate_id: str = result.data[0]["id"]
-    return candidate_id
+    return result.data[0]["id"] if result.data else candidate_id
 
 
 @router.post("/upload")
 async def upload_resume(file: UploadFile = File(...)):
-    """Accept a PDF resume, parse it, store in Supabase, and return structured data."""
+    """Accept a PDF resume, parse it, store in Supabase/local cache, and return structured data."""
     if file.content_type not in ("application/pdf",):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
 
@@ -66,14 +65,34 @@ async def upload_resume(file: UploadFile = File(...)):
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    candidate_id: str
+    candidate_id = str(uuid.uuid4())
+    candidate_record = {
+        "id": candidate_id,
+        "name": parsed.get("name") or "Unknown",
+        "email": parsed.get("email") or "unknown@example.com",
+        "resume_raw_text": parsed.get("raw_text", ""),
+        "resume_sections": {
+            "about_me": parsed.get("about_me"),
+            "education": parsed.get("education"),
+            "work_experience": parsed.get("work_experience"),
+            "projects": parsed.get("projects"),
+            "technical_skills": parsed.get("technical_skills"),
+            "publications": parsed.get("publications"),
+        },
+        "identified_field": parsed.get("identified_field", ""),
+        "primary_project": parsed.get("primary_project") or {},
+        "secondary_project": parsed.get("secondary_project") or {},
+    }
+
+    # Always persist locally first so interview can start regardless of DB state
+    save_candidate(candidate_id, candidate_record)
+
     storage_warning: str | None = None
     try:
-        candidate_id = _store_candidate(parsed)
+        _store_candidate(parsed, candidate_id)
     except Exception as exc:
-        logger.warning("Supabase storage unavailable, using local id: %s", exc)
-        candidate_id = str(uuid.uuid4())
-        storage_warning = "Storage unavailable (Supabase unreachable). Data not persisted."
+        logger.warning("Supabase storage unavailable (%s). Cached in local session store.", exc)
+        storage_warning = "Operating in local resilient mode (Supabase unreachable). Data saved locally."
 
     response: dict[str, Any] = {
         "status": "ok",

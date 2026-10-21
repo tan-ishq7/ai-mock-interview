@@ -51,6 +51,8 @@ async def transcribe(file: UploadFile = File(...)):
 
     try:
         result = await transcribe_audio(audio_bytes, filename=file.filename or "audio.webm")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=500, detail=f"Transcription failed: {exc}"

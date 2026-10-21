@@ -19,16 +19,23 @@ app = FastAPI(
     description="Backend API for an AI-powered mock interview platform.",
 )
 
+import os
+
 # ---------------------------------------------------------------------------
-# CORS – allow the Vite dev server during local development
+# CORS – allow local dev server and deployed frontend
 # ---------------------------------------------------------------------------
+cors_env = os.getenv("ALLOWED_ORIGINS", "*").strip()
+if cors_env == "*":
+    allow_origins = ["*"]
+    allow_credentials = False
+else:
+    allow_origins = [orig.strip() for orig in cors_env.split(",") if orig.strip()]
+    allow_credentials = True
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
+    allow_origins=allow_origins,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -43,8 +50,14 @@ app.include_router(evaluation_router, prefix="/api/evaluation", tags=["Evaluatio
 
 
 # ---------------------------------------------------------------------------
-# Health check
+# Health checks
 # ---------------------------------------------------------------------------
+@app.get("/", tags=["Health"])
+async def root():
+    """Root route confirming the service is online."""
+    return {"status": "ok", "service": "AI Mock Interview Agent", "docs": "/docs"}
+
+
 @app.get("/api/health", tags=["Health"])
 async def health_check():
     """Simple liveness probe."""

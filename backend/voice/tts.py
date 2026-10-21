@@ -33,22 +33,40 @@ async def synthesize_speech(text: str) -> bytes:
     """
     client = _get_client()
 
-    audio_generator = client.text_to_speech.convert(
-        voice_id=settings.ELEVENLABS_VOICE_ID,
-        text=text,
-        model_id="eleven_multilingual_v2",
-        output_format="mp3_44100_128",
-        voice_settings={
-            "stability": 0.7,
-            "similarity_boost": 0.8,
-            "style": 0.15,
-            "use_speaker_boost": True,
-        },
-    )
-
-    # Collect all chunks into bytes
-    audio_bytes = b""
-    for chunk in audio_generator:
-        audio_bytes += chunk
-
-    return audio_bytes
+    voice_id = settings.ELEVENLABS_VOICE_ID
+    try:
+        audio_generator = client.text_to_speech.convert(
+            voice_id=voice_id,
+            text=text,
+            model_id="eleven_multilingual_v2",
+            output_format="mp3_44100_128",
+            voice_settings={
+                "stability": 0.7,
+                "similarity_boost": 0.8,
+                "style": 0.15,
+                "use_speaker_boost": True,
+            },
+        )
+        audio_bytes = b""
+        for chunk in audio_generator:
+            audio_bytes += chunk
+        return audio_bytes
+    except Exception as exc:
+        logger.warning("Primary voice %s failed (%s), attempting fallback voice...", voice_id, exc)
+        try:
+            voices = client.voices.get_all().voices
+            if voices:
+                fallback_voice_id = voices[0].voice_id
+                audio_generator = client.text_to_speech.convert(
+                    voice_id=fallback_voice_id,
+                    text=text,
+                    model_id="eleven_multilingual_v2",
+                    output_format="mp3_44100_128",
+                )
+                audio_bytes = b""
+                for chunk in audio_generator:
+                    audio_bytes += chunk
+                return audio_bytes
+        except Exception:
+            pass
+        raise exc

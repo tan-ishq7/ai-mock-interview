@@ -204,7 +204,10 @@ def _parse_with_claude(file_bytes: bytes) -> str:
         ],
     )
 
-    return message.content[0].text.strip()
+    for block in message.content:
+        if getattr(block, "type", None) == "text":
+            return block.text.strip()
+    return ""
 
 
 # =========================================================================
